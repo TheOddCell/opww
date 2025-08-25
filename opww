@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 # odd pacman wrapper wrapper
 # an interesting AUR wrapper made to work when aur.archlinux.org is down
-# 75 lines of wrapping other stuff because I can't bother actually implimenting anything, please read it else you may run opww -S out of habit and make this whole thing attempt to run a package named "-S"
+# 80 lines of wrapping other stuff because I can't bother actually implimenting anything, please read it else you may run opww -S out of habit and make this whole thing attempt to run a package named "-S"
 
 import os
 import sys
@@ -39,18 +39,23 @@ if os.geteuid() == 0:
 
 def githubMirror():
   cwd=os.getcwd()
-  with tempfile.TemporaryDirectory() as dir:
-    os.chdir(dir)
-    status=os.system(f"git clone --branch {pkg} --single-branch https://github.com/archlinux/aur.git {pkg}")
-    if status != 0:
-      print("opqq ERR: Cloning failed. Is this a real AUR package?", file=sys.stderr)
+  status=12345
+  try:
+    with tempfile.TemporaryDirectory() as dir:
+      os.chdir(dir)
+      status=os.system(f"git clone --branch {pkg} --single-branch https://github.com/archlinux/aur.git {pkg}")
+      if status != 0:
+        print("opqq ERR: Cloning failed. Is this a real AUR package?", file=sys.stderr)
+        sys.exit(status)
+      os.chdir(pkg)
+      os.system("less PKGBUILD")
+      if input("opqq ASK: Is this PKGBUILD good to run? (y/n) ").lower() != "y":
+          print("opqq ERR: Aborted.", file=sys.stderr)
+          sys.exit(2)
+      status=os.system("makepkg -si")
+    finally:
+      os.chdir(cwd)
       sys.exit(status)
-    os.chdir(pkg)
-    os.system("less PKGBUILD")
-    if input("opqq ASK: Is this PKGBUILD good to run? (y/n) ").lower() != "y":
-        print("opqq ERR: Aborted.", file=sys.stderr)
-        sys.exit(2)
-    os.execvp("makepkg", ["makepkg", "-si"])
 
 print("opqq INFO: Checking if available in your repos...")
 if os.system(f"pacman -Si {pkg}>/dev/null") == 0:
